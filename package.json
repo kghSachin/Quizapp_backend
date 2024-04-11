@@ -1,0 +1,27 @@
+{
+  "name": "quizapp_backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "server": "nodemon src/index.js",
+    "test": "npm run server"
+  },
+  "keywords": [
+    "ts",
+    "node",
+    "js"
+  ],
+  "author": "sachin",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.12.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "prisma": "^5.12.1"
+  }
+}
