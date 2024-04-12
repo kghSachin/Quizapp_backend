@@ -4,6 +4,10 @@ import { ApiError } from "../../utils/api_errors.js";
 import bcrypt from "bcrypt";
 import jwt from "json-web-token";
 import { json } from "express";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../../utils/genereate-token.js";
 
 export class AuthController {
   static async register(req, res) {
@@ -61,13 +65,25 @@ export class AuthController {
       if (!isPasswordValid) {
         return res.status(400).json(new ApiError(400, "invalid password", []));
       }
+      console.log(user);
+      const { accessToken, refreshToken } =
+        await generateAccessAndRefreshTokens(user.id);
+      console.log(accessToken, refreshToken);
       return res
         .status(200)
-        .json(new ApiResponse(200, user, "login successful"));
+        .cookie("refreshToken", refreshToken)
+        .cookie("accessToken", accessToken)
+        .json(
+          new ApiResponse(
+            200,
+            { user, accessToken, refreshToken },
+            "login successful"
+          )
+        );
     } catch (error) {
       return res
         .status(500)
-        .json(new ApiError(500, "internal server error", error.message));
+        .json(new ApiError(500, "Internal server error ", error.message));
     }
   }
 
@@ -81,3 +97,9 @@ export class AuthController {
     }
   }
 }
+
+const generateAccessAndRefreshTokens = async (userId) => {
+  const accessToken = generateAccessToken({ id: userId });
+  const refreshToken = generateRefreshToken({ id: userId });
+  return { accessToken, refreshToken };
+};
