@@ -2,8 +2,8 @@ import prisma from "../../DB/db.config.js";
 import { ApiResponse } from "../../utils/api_response.js";
 import { ApiError } from "../../utils/api_errors.js";
 import bcrypt from "bcrypt";
-import jwt from "json-web-token";
 import { json } from "express";
+import jwt from "jsonwebtoken";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -69,21 +69,62 @@ export class AuthController {
       const { accessToken, refreshToken } =
         await generateAccessAndRefreshTokens(user.id);
       console.log(accessToken, refreshToken);
+      user.refreshToken = refreshToken;
       return res
         .status(200)
         .cookie("refreshToken", refreshToken)
         .cookie("accessToken", accessToken)
-        .json(
-          new ApiResponse(
-            200,
-            { user, accessToken, refreshToken },
-            "login successful"
-          )
-        );
+        .json(new ApiResponse(200, { user, accessToken }, "login successful"));
     } catch (error) {
       return res
         .status(500)
         .json(new ApiError(500, "Internal server error ", error.message));
+    }
+  }
+
+  static async logout(req, res) {
+    try {
+      res.clearCookie("refreshToken");
+      res.clearCookie("accessToken");
+      return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "logout successful"));
+    } catch (error) {
+      return res
+        .status(500)
+        .json(new ApiError(500, "Internal server error", error.message));
+    }
+  }
+
+  static async regenerateAccessToken(req, res) {
+    try {
+      const { refreshToken } = req.body;
+      if (!refreshToken) {
+        return res
+          .status(400)
+          .json(new ApiError(400, "refreshToken is required", []));
+      }
+      console.log("refreshToken is ", refreshToken);
+      const isTokenValid = jwt.verify(
+        refreshToken,
+        process.env.REFRESH_TOKEN_SECRET
+      );
+      if (!isTokenValid) {
+        return res
+          .status(400)
+          .json(new ApiError(400, "invalid refreshToken", []));
+      }
+      const userId = isTokenValid.id;
+      console.log("userId is ", userId);
+      const accessToken = generateAccessToken({ id: userId });
+      return res
+        .status(200)
+        .cookie("accessToken", accessToken)
+        .json(new ApiResponse(200, { accessToken }, "accessToken regenerated"));
+    } catch (error) {
+      return res
+        .status(500)
+        .json(new ApiError(500, "Internal server error", error.message));
     }
   }
 
