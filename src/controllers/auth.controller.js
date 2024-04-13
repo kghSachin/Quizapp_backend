@@ -124,7 +124,7 @@ export class AuthController {
     } catch (error) {
       return res
         .status(500)
-        .json(new ApiError(500, "Internal server error", error.message));
+        .json(new ApiError(500, "can't generate token", error.message));
     }
   }
 
