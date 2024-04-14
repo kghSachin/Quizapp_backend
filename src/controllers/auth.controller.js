@@ -64,7 +64,7 @@ export class AuthController {
           password: password,
           username: username,
           verifyCode: verifyCode,
-          codeExpiryDate: new Date(Date.now() + 60000),
+          codeExpiryDate: new Date(Date.now() + 60000 * 30),
         },
         select: {
           id: true,
@@ -186,6 +186,45 @@ export class AuthController {
   static async self(req, res) {
     try {
       //TODO:write logic for self
+    } catch (error) {
+      return json.res
+        .status(500)
+        .json(new ApiError(500, "Can't connect at the moment", error));
+    }
+  }
+  static async verifyUser(req, res) {
+    try {
+      const { code } = req.body;
+      const user = await prisma.user.findFirst({
+        where: {
+          verifyCode: code,
+        },
+      });
+      console.log(user);
+      if (!user) {
+        return res
+          .status(400)
+          .json(new ApiError(400, "invalid code", ["Create a new code"]));
+      }
+      console.log(user.codeExpiryDate, new Date());
+      if (user.codeExpiryDate < new Date()) {
+        return res
+          .status(400)
+          .json(new ApiError(400, "code expired", ["Create a new code"]));
+      }
+      user.isVerified = true;
+      user.verifyCode = null;
+      user.codeExpiryDate = null;
+      user.updatedAt = new Date();
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: user,
+      });
+      return res
+        .status(200)
+        .json(new ApiResponse(200, user, "user verified successfully"));
     } catch (error) {
       return json.res
         .status(500)

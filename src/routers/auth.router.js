@@ -13,6 +13,9 @@ router.route("/register").post(validate(SignUpSchema), AuthController.register);
 // Login route
 router.post("/login", validate(LoginSchema), AuthController.login);
 
+//verify user
+router.post("/verify-user", AuthController.verifyUser);
+
 //regenerate access token
 router.post("/generate-token", AuthController.regenerateAccessToken);
 
