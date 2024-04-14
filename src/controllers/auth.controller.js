@@ -8,6 +8,9 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../../utils/genereate-token.js";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class AuthController {
   static async register(req, res) {
@@ -15,8 +18,54 @@ export class AuthController {
       let { email, password, username } = req.body;
       const salt = bcrypt.genSaltSync(10);
       password = bcrypt.hashSync(password, salt);
+      console.log("working ");
+      const userExists = await prisma.user.findFirst({
+        where: {
+          OR: [{ email: email }, { username: username }],
+        },
+      });
+      const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+      if (userExists) {
+        if (userExists.isVerified === false) {
+          userExists.password = password;
+          userExists.username = username;
+          userExists.verifyCode = verifyCode;
+          userExists.email = email;
+          userExists.updatedAt = new Date();
+          userExists.codeExpiryDate = new Date(Date.now() + 60000);
+          await prisma.user.update({
+            where: {
+              id: userExists.id,
+            },
+            data: userExists,
+          });
+          await resend.emails.send({
+            from: "Acme <onboarding@resend.dev>",
+            to: [userExists.email],
+            subject: "VERIFY YOUR IDENTITY",
+            text: verifyCode,
+          });
+          return res
+            .status(201)
+            .json(
+              new ApiResponse(
+                201,
+                userExists,
+                "user created successfully! please verify"
+              )
+            );
+        } else {
+          res.status(400).json(new ApiError(400, "user already exists", []));
+        }
+      }
       const user = await prisma.user.create({
-        data: { email: email, password: password, username: username },
+        data: {
+          email: email,
+          password: password,
+          username: username,
+          verifyCode: verifyCode,
+          codeExpiryDate: new Date(Date.now() + 60000),
+        },
         select: {
           id: true,
           email: true,
@@ -24,6 +73,12 @@ export class AuthController {
           createdAt: true,
           updatedAt: true,
         },
+      });
+      await resend.emails.send({
+        from: "Acme <onboarding@resend.dev>",
+        to: [user.email],
+        subject: "VERIFY YOUR IDENTITY",
+        text: verifyCode,
       });
       return res
         .status(201)
