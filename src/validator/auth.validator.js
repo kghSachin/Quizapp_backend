@@ -4,9 +4,11 @@ export const SignUpSchema = z.object({
   email: z.string().email({ message: "invalid email" }),
   password: z
     .string()
+    .trim()
     .min(6, { message: "password must be at least 6 characters" }),
   username: z
     .string()
+    .trim()
     .min(3, { message: "username must be at least 3 characters" }),
 });
 // export const LoginSchema = z.object({
@@ -17,8 +19,8 @@ export const SignUpSchema = z.object({
 
 export const LoginSchema = z
   .object({
-    username: z.string().optional(),
-    email: z.string().email().optional(),
+    username: z.string().trim().optional(),
+    email: z.string().email().trim().optional(),
     password: z.string(),
   })
   .refine((data) => data.username || data.email, {
