@@ -9,6 +9,7 @@ import {
   generateRefreshToken,
 } from "../../utils/genereate-token.js";
 import { Resend } from "resend";
+import uploadOnCloudinary from "../../utils/cloudinary.config.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -371,6 +372,42 @@ export class AuthController {
         .json(
           new ApiResponse(200, { data: "login to continue" }, "code verified")
         );
+    } catch (error) {
+      return res.status(500).json(new ApiError(500, error.message, error));
+    }
+  }
+
+  // upload avatar for user profile
+  static async uploadAvatar(req, res) {
+    try {
+      const file = req.file?.path;
+      const user = req.user;
+
+      if (!file) {
+        return res.status(400).json(new ApiError(400, "file is required", []));
+      }
+      if (!user) {
+        return res.status(400).json(new ApiError(400, "user not found", []));
+      }
+      console.log("working");
+      const response = await uploadOnCloudinary(file, "avatars");
+      console.log(response);
+      if (!response) {
+        return res
+          .status(500)
+          .json(new ApiError(400, "unable to upload image", []));
+      }
+      console.log(response);
+      user.profileImage = response.url;
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: user,
+      });
+      return res
+        .status(200)
+        .json(new ApiResponse(200, response, "image uploaded successfully"));
     } catch (error) {
       return res.status(500).json(new ApiError(500, error.message, error));
     }
