@@ -199,6 +199,7 @@ export class AuthController {
         .json(new ApiError(500, "Can't connect at the moment", error));
     }
   }
+  // user verification after registration.
   static async verifyUser(req, res) {
     try {
       const { code } = req.body;
@@ -236,6 +237,48 @@ export class AuthController {
       return json.res
         .status(500)
         .json(new ApiError(500, "Can't connect at the moment", error));
+    }
+  }
+
+  //reset password
+  static async resetPassword(req, res) {
+    try {
+      const { email, password, newPassword } = req.body;
+      const user = await prisma.user.findFirst({
+        where: {
+          email: email,
+        },
+      });
+      if (!user) {
+        return res
+          .status(400)
+          .json(new ApiError(400, "cant find user", ["invalid id or email"]));
+      }
+      const isPasswordValid = bcrypt.compareSync(password, user.password);
+      if (!isPasswordValid) {
+        return res
+          .status(400)
+          .json(
+            new ApiError(400, "invalid password", ["Enter a valid password"])
+          );
+      }
+      const salt = bcrypt.genSaltSync(10);
+      const newPasswordHashed = bcrypt.hashSync(newPassword, salt);
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          password: newPasswordHashed,
+        },
+      });
+      return res
+        .status(200)
+        .json(new ApiResponse(200, user, "password reset successfully"));
+    } catch (error) {
+      return res
+        .status(500)
+        .json(new ApiError(500, "unable to reset password", error));
     }
   }
 

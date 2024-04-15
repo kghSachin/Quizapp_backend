@@ -25,4 +25,7 @@ router.post("/verify-code", AuthController.verifyCodeForForgotPassword);
 //regenerate access token
 router.post("/generate-token", AuthController.regenerateAccessToken);
 
+//reset password
+router.post("/reset-password", AuthController.resetPassword);
+
 export { router as userRoutes };
