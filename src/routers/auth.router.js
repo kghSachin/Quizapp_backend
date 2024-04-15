@@ -16,6 +16,12 @@ router.post("/login", validate(LoginSchema), AuthController.login);
 //verify user
 router.post("/verify-user", AuthController.verifyUser);
 
+//forgot password
+router.post("/forgot-password", AuthController.forgotPassword);
+
+//verify code and reset password
+router.post("/verify-code", AuthController.verifyCodeForForgotPassword);
+
 //regenerate access token
 router.post("/generate-token", AuthController.regenerateAccessToken);
 

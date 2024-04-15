@@ -113,18 +113,25 @@ export class AuthController {
 
       if (!user) {
         return res
-          .status(400)
+          .status(404)
           .json(new ApiError(400, "user doesn't exist", []));
       }
       const isPasswordValid = bcrypt.compareSync(password, user.password);
       if (!isPasswordValid) {
-        return res.status(400).json(new ApiError(400, "invalid password", []));
+        return res.status(401).json(new ApiError(400, "invalid password", []));
       }
       console.log(user);
       const { accessToken, refreshToken } =
         await generateAccessAndRefreshTokens(user.id);
       console.log(accessToken, refreshToken);
-      user.refreshToken = refreshToken;
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          refreshToken: refreshToken,
+        },
+      });
       return res
         .status(200)
         .cookie("refreshToken", refreshToken)
@@ -229,6 +236,100 @@ export class AuthController {
       return json.res
         .status(500)
         .json(new ApiError(500, "Can't connect at the moment", error));
+    }
+  }
+
+  //forgot password
+  static async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json(new ApiError(400, "email is required", []));
+      }
+      const user = await prisma.user.findFirst({
+        where: {
+          email: email,
+        },
+      });
+      if (!user) {
+        return res
+          .status(400)
+          .json(new ApiError(400, "user doesn't exist", []));
+      }
+      const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+      user.verifyCode = verifyCode;
+      user.codeExpiryDate = new Date(Date.now() + 60000 * 30);
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: user,
+      });
+      await resend.emails.send({
+        from: "Acme <onboarding@resend.dev>",
+        to: [email],
+        subject: "CHANGE YOUR PASSWORD",
+        text: verifyCode,
+      });
+
+      return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "code sent successfully"));
+    } catch (error) {
+      return res.status(500).json(new ApiError(500, error.message, error));
+    }
+  }
+
+  // verify and change password for forgot password
+  static async verifyCodeForForgotPassword(req, res) {
+    try {
+      const { code, email, password } = req.body;
+      if (!code || !email || !password) {
+        return res
+          .status(400)
+          .json(
+            new ApiError(400, "fill all the required fields", [
+              "code is required ",
+              "email is required ",
+              "password is required ",
+            ])
+          );
+      }
+      const user = await prisma.user.findFirst({
+        where: {
+          email: email,
+          verifyCode: code,
+        },
+      });
+      if (!user) {
+        return res
+          .status(400)
+          .json(new ApiError(400, "invalid code", ["Create a new code"]));
+      }
+      if (user.codeExpiryDate < new Date()) {
+        return res
+          .status(400)
+          .json(new ApiError(400, "code expired", ["Create a new code"]));
+      }
+      const salt = bcrypt.genSaltSync(10);
+      const newPassword = bcrypt.hashSync(password, salt);
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          verifyCode: null,
+          codeExpiryDate: null,
+          password: newPassword,
+        },
+      });
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(200, { data: "login to continue" }, "code verified")
+        );
+    } catch (error) {
+      return res.status(500).json(new ApiError(500, error.message, error));
     }
   }
 }
