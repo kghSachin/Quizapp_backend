@@ -22,7 +22,7 @@ export class AuthController {
       console.log("working ");
       const userExists = await prisma.user.findFirst({
         where: {
-          OR: [{ email: email }, { username: username }],
+          email: email,
         },
       });
       const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
