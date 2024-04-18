@@ -26,6 +26,8 @@ export class AuthController {
         },
       });
       const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+      console.log("user exists");
+      console.log(userExists);
       if (userExists) {
         if (userExists.isVerified === false) {
           userExists.password = password;
